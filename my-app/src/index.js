@@ -4,30 +4,14 @@ import PropTypes from 'prop-types';
 import './index.css';
 
 
-class Table extends React.Component {
-  render() {
-    return (
-      <table rules="column">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Unit value</th>
-            <th>Quantity</th>
-            <th>Total value</th>
-            <th>Select</th>
-          </tr>
-          <Stock />
-        </thead>
-      </table> 
-    );
-  }
-}
+
 
 class Stock extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      name: "defaultname",
+      idStock:null,
+      name: null,
       value: 0,
       quantity: 0,
       totalvalue: 0,
@@ -37,7 +21,7 @@ class Stock extends React.Component {
   render() {
     return (
       <tr>
-        <th>{this.state.name}</th>
+        <th>{this.props.name}</th>
         <th>{this.state.value}</th>
         <th>{this.state.quantity}</th>
         <th>{this.state.totalvalue}</th>
@@ -55,20 +39,61 @@ class Portfolio extends React.Component {
       name: null,
       total: 0,
       currency: "€",
+      stocklist: [],
+      countP: 0,
+      value: '',
+      show: false,
     };
   }
+
+
+  addStock(n,i){     
+    var newArray = this.state.stocklist
+    newArray.push(<Stock key={i} idStock={i} name={n}/>)
+    this.setState({stocklist:newArray})
+    var c = this.state.countP
+    const y = c +1
+    this.setState({countP:y})
+    this.setState({show:false})
+  }
+
+  handleChange(event) {
+    this.setState({value: event.target.value});
+  }
+
+
   render() {
     return (
 
       <div className="portfolio">
         <div>{this.props.name}</div>
-        <div>{this.props.id}</div>
+        {this.state.show &&
+        <div >
+          <input type="text" value={this.state.value} onChange={this.handleChange.bind(this)} />    
+          <button onClick={() => this.addStock(this.state.value,this.state.countP)}>Validate</button>
+        </div>
+
+        }
+
         <button onClick={() => this.setState({currency:"€"})}>Show in €</button>
         <button onClick={() => this.setState({currency:"$"})}>Show in $</button>
         <button onClick={() => this.props.onClick(this.props.id)}>X</button>
-        <div><Table /></div>
+        <table rules="column">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Unit value</th>
+              <th>Quantity</th>
+              <th>Total value</th>
+              <th>Select</th>
+            </tr>
+          </thead>
+          <tbody>          
+            {this.state.stocklist} 
+          </tbody>
+        </table> 
         <div>Total value of {this.state.name} : {this.state.total} {this.state.currency}</div>
-        <button >Add stock</button>
+        <button onClick={() => this.setState({show:true})}>Add stock</button>
         <button >Perf graph</button>
         <button >Remove selected</button>
       </div>
@@ -86,6 +111,8 @@ class Page extends React.Component {
       isOpen: false,
       portList: [],
       count: 0,
+      value: '',
+      show: false,
     };
   }
 
@@ -95,24 +122,25 @@ class Page extends React.Component {
     });
   }
 
-  addPortFolio(n,i){    
+  handleChange(event) {
+    this.setState({value: event.target.value});
+  }
+
+  addPortFolio(n,i){     
     var newArray = this.state.portList
     newArray.push(<Portfolio id={i} name={n} onClick={() => this.delPortFolio(i)}/>)
     this.setState({portList:newArray})
     var c = this.state.count
     const y = c +1
     this.setState({count:y})
+    this.setState({show:false})
   }
-  renderPF(){
-    for (var i = 0; i < this.state.portList.length; i++) {
-      return this.state.portList[i]
-    }
-  }
+
+
   delPortFolio(i){
-    console.log(i)
     var newArray = this.state.portList
     for (var j = 0; j < newArray.length; j++) {
-      if(newArray[j].props.id == i){
+      if(newArray[j].props.id === i){
         newArray.splice(j,1)
       }
     }    
@@ -121,18 +149,28 @@ class Page extends React.Component {
 
   render() {
     return (
-      <div className="page">
-        <button onClick={() => this.addPortFolio("d",this.state.count)}> Add a Portfolio </button>        
-        {this.state.portList.map(portfolio => <div> {portfolio} </div>)} 
-        <button onClick={this.toggleModal}>
-          Open the modal
-        </button>
+      <div >
 
-        <Modal show={this.state.isOpen}
-          onClose={this.toggleModal}>
-          Here's some content for the modal
-        </Modal>
-        <div>{this.state.count}</div>
+        <button onClick={() => this.setState({show:true}) }> Add a Portfolio </button>
+        {this.state.show &&
+        <div>
+          <input type="text" value={this.state.value} onChange={this.handleChange.bind(this)} />     
+          <button onClick={() => this.addPortFolio(this.state.value,this.state.count)}>Validate</button>
+        </div>
+        }
+
+
+        <div className="portfoliopanel">      
+          {this.state.portList.map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)} 
+        </div>
+          <button onClick={this.toggleModal}>
+            Open the modal
+          </button>
+
+          <Modal show={this.state.isOpen}
+            onClose={this.toggleModal}>
+            Here's some content for the modal
+          </Modal>
       </div>
     );
   }

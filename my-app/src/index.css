@@ -3,26 +3,13 @@ body {
   margin: 20px;
 }
 
-
-
-
-
 .portfolio {
   background: #fff;
   border: 1px solid #999;
 }
 
-.square:focus {
-  outline: none;
-}
 
-.kbd-navigation .square:focus {
-  background: #ddd;
-}
-
-.page {
+.portfoliopanel {
   display: flex;
   flex-direction: row;
 }
-
-
