@@ -18,14 +18,15 @@ class Stock extends React.Component {
       selected: "false",
     };
   }
+
   render() {
     return (
-      <tr>
-        <th>{this.props.name}</th>
-        <th>{this.state.value}</th>
-        <th>{this.state.quantity}</th>
-        <th>{this.state.totalvalue}</th>
-        <th>{this.state.selected}</th>
+      <tr >
+        <td align= "center">{this.props.name}</td>
+        <td align= "center">{this.props.value}</td>
+        <td align= "center">{this.props.quantity}</td>
+        <td align= "center">{this.props.totalvalue}</td>
+        <td align= "center">{this.state.selected}</td>
       </tr>
     );
   }
@@ -38,47 +39,169 @@ class Portfolio extends React.Component {
       id:null,
       name: null,
       total: 0,
-      currency: "€",
+      currency: "$",
       stocklist: [],
       countP: 0,
-      value: '',
+      pname: '',
+      pquantity: '',
       show: false,
     };
   }
 
+  add(n,q){
+    this.setState({show:false})
+    var that = this
+    var client = new XMLHttpRequest();
+    client.open("GET", "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=" + n +"&interval=1min&apikey=AABZ5Q20J049KTFZ", true);
+    client.onreadystatechange = function() {
+      if(client.readyState === 4) {
+        var obj = JSON.parse(client.responseText)
+        var count = 0
+        var t
+        for (t in obj){
+          if (count === 1) {
+            var temp = obj[t]
+          }
+          count++   
+        }
+        count = 0
 
-  addStock(n,i){     
+        for (t in temp){
+          if(count === 0){
+            const val = temp[t]["4. close"]
+            const tot = val * q
+            that.addStock(n,q,val,tot)
+          }count++
+        }
+        count =0
+      };
+    };
+    client.send();
+  }
+
+
+  addStock(n,q,v,t){     
     var newArray = this.state.stocklist
-    newArray.push(<Stock key={i} idStock={i} name={n}/>)
+    newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={n} quantity={q} value={v} totalvalue={t}/>)
     this.setState({stocklist:newArray})
     var c = this.state.countP
     const y = c +1
     this.setState({countP:y})
-    this.setState({show:false})
+    this.getTotal()
   }
 
-  handleChange(event) {
-    this.setState({value: event.target.value});
+  handleChangeN(event) {
+    this.setState({pname: event.target.value});
+  }
+  handleChangeQ(event) {
+    this.setState({pquantity: event.target.value});
   }
 
+  Wrapper(callback,that) {    
+        var value;
+        this.set = function(v) {
+            value = v;
+            callback(this,that);
+        }
+        this.get = function() {
+            return value;
+        }  
+  }
+
+  callback(wrapper,that) {
+    //console.log(that)
+    //that.addStock(that.state.stocklist[0].props.name,that.state.stocklist[0].props.quantity+1,that.state.stocklist[0].props.value,that.state.stocklist[0].props.totalvalue); //get lines when url value is defined
+    that.getTotal()
+  }
+
+
+
+  refresh(){
+    var that = this
+    var url = new this.Wrapper(this.callback,that)
+    var a = this.state.stocklist
+    /*var n = []
+    var co= this.state.countP
+    for (var i = 0; i < a.length; i++) {
+      n.push(<Stock key={co} idStock={co} name={a[i].props.name} quantity={a[i].props.quantity} value={a[i].props.value+1} totalvalue={a[i].props.totalvalue}/>)      
+      co ++
+    }
+    this.setState({countP:co})
+    this.setState({stocklist:n})*/
+
+
+    var client = new XMLHttpRequest();
+    client.open("GET", "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=" + "AAPL" + "&interval=1min&apikey=AABZ5Q20J049KTFZ", true);
+    client.onreadystatechange = function() {
+      if(client.readyState === 4) {
+        var obj = JSON.parse(client.responseText);
+        var count = 0;
+        var t;
+        for (t in obj){
+          if (count === 1) {
+            var temp = obj[t]
+          }
+          count++ 
+        }
+        count = 0
+
+        for (t in temp){
+          if(count === 0){
+            console.log(temp[t]["4. close"])            
+            url.set(1)
+          }count++
+        }
+        count =0
+      };
+    };
+    client.send();
+ }
+
+  getTotal(){
+    var res=0
+    for (var i = 0; i < this.state.stocklist.length; i++) {
+      res = res + this.state.stocklist[i].props.totalvalue
+    }
+    this.setState({total:res})  
+  }
+
+  changeToEuro(){
+    if (this.state.currency === "$") {
+      this.setState({currency:"€"})
+      var newArray = []
+      var a = this.state.stocklist
+      for (var i = 0; i < a.length; i++) {
+        var newV = a[i].props.value * 0.8
+        var newT = newV * a[i].props.quantity
+        newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={a[i].props.name} quantity={a[i].props.quantity} value={newV} totalvalue={newT}/>)
+        var c = this.state.countP
+        const y = c +1
+        this.setState({countP:y})       
+      }
+      this.setState({stocklist:newArray},function(){
+        this.getTotal();
+      })     
+    }
+  }
 
   render() {
     return (
-
       <div className="portfolio">
         <div>{this.props.name}</div>
         {this.state.show &&
         <div >
-          <input type="text" value={this.state.value} onChange={this.handleChange.bind(this)} />    
-          <button onClick={() => this.addStock(this.state.value,this.state.countP)}>Validate</button>
+          <input type="text" value={this.state.pname} onChange={this.handleChangeN.bind(this)} />
+          <input type="text" value={this.state.pquantity} onChange={this.handleChangeQ.bind(this)} />     
+          <button onClick={() => this.add(this.state.pname,this.state.pquantity)}>Validate</button>
         </div>
 
         }
 
-        <button onClick={() => this.setState({currency:"€"})}>Show in €</button>
+        <button onClick={() => this.changeToEuro()}>Show in €</button>
         <button onClick={() => this.setState({currency:"$"})}>Show in $</button>
+        <button onClick={() => this.refresh()}>Refresh</button>
         <button onClick={() => this.props.onClick(this.props.id)}>X</button>
-        <table rules="column">
+        <table width = "500">
           <thead>
             <tr>
               <th>Name</th>
@@ -94,8 +217,8 @@ class Portfolio extends React.Component {
         </table> 
         <div>Total value of {this.state.name} : {this.state.total} {this.state.currency}</div>
         <button onClick={() => this.setState({show:true})}>Add stock</button>
-        <button >Perf graph</button>
-        <button >Remove selected</button>
+        <button onClick={() => this.refresh()}>Perf graph</button>
+        <button>Remove selected</button>
       </div>
     );
   }
@@ -146,6 +269,7 @@ class Page extends React.Component {
     }    
     this.setState({portList:newArray})
   }
+
 
   render() {
     return (

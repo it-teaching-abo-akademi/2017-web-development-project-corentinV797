@@ -6,10 +6,14 @@ body {
 .portfolio {
   background: #fff;
   border: 1px solid #999;
+  width: 500px;
 }
 
 
 .portfoliopanel {
   display: flex;
   flex-direction: row;
+}
+.td {
+	text-align: center;
 }
