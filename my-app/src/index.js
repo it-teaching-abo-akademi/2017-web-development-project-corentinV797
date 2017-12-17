@@ -15,7 +15,7 @@ class Stock extends React.Component {
       value: 0,
       quantity: 0,
       totalvalue: 0,
-      selected: "false",
+      selected: false,
     };
   }
 
@@ -25,8 +25,8 @@ class Stock extends React.Component {
         <td align= "center">{this.props.name}</td>
         <td align= "center">{this.props.value}</td>
         <td align= "center">{this.props.quantity}</td>
-        <td align= "center">{this.props.totalvalue}</td>
-        <td align= "center">{this.state.selected}</td>
+        <td align= "center">{this.props.totalvalue}</td>        
+        <td align= "center"><input type="checkbox" checked={this.props.selected} onChange={() => this.props.onChange(this.props.idStock)}/></td>               
       </tr>
     );
   }
@@ -82,7 +82,27 @@ class Portfolio extends React.Component {
 
   addStock(n,q,v,t){     
     var newArray = this.state.stocklist
-    newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={n} quantity={q} value={v} totalvalue={t}/>)
+    var f = this.state.countP
+    newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={n} quantity={q} value={v} totalvalue={t} selected={false} onChange={() => this.selectStock(f)}/>)
+    this.setState({stocklist:newArray}, function() {
+      var c = this.state.countP
+      const y = c +1
+      this.setState({countP:y})
+      this.getTotal()
+    })
+
+  }
+
+  selectStock(idq){
+    console.log(idq)
+    var newArray = this.state.stocklist
+    for (var i = 0; i < this.state.stocklist.length; i++) {
+      if(this.state.stocklist[i].props.idStock === idq){
+        var f = this.state.countP
+        newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={this.state.stocklist[i].props.name} quantity={this.state.stocklist[i].props.quantity} value={this.state.stocklist[i].props.value} totalvalue={this.state.stocklist[i].props.totalvalue} selected={!this.state.stocklist[i].props.selected} onChange={() => this.selectStock(f)}/>)
+        newArray.splice(i,1)
+      }
+    }
     this.setState({stocklist:newArray})
     var c = this.state.countP
     const y = c +1
@@ -114,48 +134,19 @@ class Portfolio extends React.Component {
     that.getTotal()
   }
 
-
+  removeSelected(){
+    var newArray = this.state.stocklist
+    for (var i = 0; i < this.state.stocklist.length; i++) {
+      if(this.state.stocklist[i].props.selected){
+        newArray.splice(i,1)
+      }
+    }
+    this.setState({stocklist:newArray})
+  }
 
   refresh(){
-    var that = this
-    var url = new this.Wrapper(this.callback,that)
-    var a = this.state.stocklist
-    /*var n = []
-    var co= this.state.countP
-    for (var i = 0; i < a.length; i++) {
-      n.push(<Stock key={co} idStock={co} name={a[i].props.name} quantity={a[i].props.quantity} value={a[i].props.value+1} totalvalue={a[i].props.totalvalue}/>)      
-      co ++
-    }
-    this.setState({countP:co})
-    this.setState({stocklist:n})*/
 
-
-    var client = new XMLHttpRequest();
-    client.open("GET", "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=" + "AAPL" + "&interval=1min&apikey=AABZ5Q20J049KTFZ", true);
-    client.onreadystatechange = function() {
-      if(client.readyState === 4) {
-        var obj = JSON.parse(client.responseText);
-        var count = 0;
-        var t;
-        for (t in obj){
-          if (count === 1) {
-            var temp = obj[t]
-          }
-          count++ 
-        }
-        count = 0
-
-        for (t in temp){
-          if(count === 0){
-            console.log(temp[t]["4. close"])            
-            url.set(1)
-          }count++
-        }
-        count =0
-      };
-    };
-    client.send();
- }
+  }
 
   getTotal(){
     var res=0
@@ -166,18 +157,19 @@ class Portfolio extends React.Component {
   }
 
   changeToEuro(){
-    if (this.state.currency === "$") {
+    if (this.state.currency === "$") {      
+      var f = this.state.countP
       this.setState({currency:"€"})
       var newArray = []
       var a = this.state.stocklist
       for (var i = 0; i < a.length; i++) {
         var newV = a[i].props.value * 0.8
         var newT = newV * a[i].props.quantity
-        newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={a[i].props.name} quantity={a[i].props.quantity} value={newV} totalvalue={newT}/>)
-        var c = this.state.countP
-        const y = c +1
-        this.setState({countP:y})       
+        var c = f        
+        newArray.push(<Stock key={f} idStock={f} name={a[i].props.name} quantity={a[i].props.quantity} value={newV} totalvalue={newT} selected={a[i].props.selected} onChange={() => this.selectStock(c)}/>)
+        f++               
       }
+      this.setState({countP:f})
       this.setState({stocklist:newArray},function(){
         this.getTotal();
       })     
@@ -218,7 +210,7 @@ class Portfolio extends React.Component {
         <div>Total value of {this.state.name} : {this.state.total} {this.state.currency}</div>
         <button onClick={() => this.setState({show:true})}>Add stock</button>
         <button onClick={() => this.refresh()}>Perf graph</button>
-        <button>Remove selected</button>
+        <button onClick={() => this.removeSelected()}>Remove selected</button>
       </div>
     );
   }
