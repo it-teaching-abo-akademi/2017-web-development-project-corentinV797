@@ -45,8 +45,25 @@ class Portfolio extends React.Component {
       pname: '',
       pquantity: '',
       show: false,
+      currencyValue: null,
     };
   }
+
+  getCurrencyValue(){
+    var that = this
+    var client = new XMLHttpRequest();
+    client.open("GET", "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=EUR&apikey=AABZ5Q20J049KTFZ", true);
+    client.onreadystatechange = function() {
+      if(client.readyState === 4) {
+        var obj = JSON.parse(client.responseText);
+        console.log(obj["Realtime Currency Exchange Rate"]["5. Exchange Rate"])
+        var curr = obj["Realtime Currency Exchange Rate"]["5. Exchange Rate"]
+        that.setState({currencyValue:curr})
+      };
+    };
+    client.send();
+  }
+
 
   add(n,q){
     this.setState({show:false})
@@ -82,6 +99,10 @@ class Portfolio extends React.Component {
 
   addStock(n,q,v,t){     
     var newArray = this.state.stocklist
+    if(this.state.currency === "€"){
+      v = v * this.state.currencyValue
+      t = v * q
+    }
     var f = this.state.countP
     newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={n} quantity={q} value={v} totalvalue={t} selected={false} onChange={() => this.selectStock(f)}/>)
     this.setState({stocklist:newArray}, function() {
@@ -93,16 +114,25 @@ class Portfolio extends React.Component {
 
   }
 
+  test(a,c,n,q,v,t,s,that){
+    return function(){
+      a.push(<Stock key={c} idStock={c} name={n} quantity={q} value={v} totalvalue={t} selected={s} onChange={() => that.selectStock(c)}/>)
+    }
+  }
+
   selectStock(idq){
-    console.log(idq)
+    var func
     var newArray = this.state.stocklist
+    var j
     for (var i = 0; i < this.state.stocklist.length; i++) {
       if(this.state.stocklist[i].props.idStock === idq){
         var f = this.state.countP
-        newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={this.state.stocklist[i].props.name} quantity={this.state.stocklist[i].props.quantity} value={this.state.stocklist[i].props.value} totalvalue={this.state.stocklist[i].props.totalvalue} selected={!this.state.stocklist[i].props.selected} onChange={() => this.selectStock(f)}/>)
-        newArray.splice(i,1)
+        func = this.test(newArray,this.state.countP,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,!this.state.stocklist[i].props.selected,this)
+        j=i
       }
     }
+    func()
+    newArray.splice(j,1)
     this.setState({stocklist:newArray})
     var c = this.state.countP
     const y = c +1
@@ -135,17 +165,28 @@ class Portfolio extends React.Component {
   }
 
   removeSelected(){
-    var newArray = this.state.stocklist
-    for (var i = 0; i < this.state.stocklist.length; i++) {
-      if(this.state.stocklist[i].props.selected){
-        newArray.splice(i,1)
+    var funcs =[]
+    var newArray = []
+    var counter = this.state.countP
+    for (var i = 0; i < this.state.stocklist.length; i++) {    
+      if(!this.state.stocklist[i].props.selected){
+        var f = counter
+        funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,this.state.stocklist[i].props.selected,this))        
       }
+      counter++  
     }
-    this.setState({stocklist:newArray})
+    for (var j = 0; j < funcs.length; j++) {
+      funcs[j]()
+    }
+    this.setState({stocklist:newArray},function(){
+      this.setState({countP:counter}) 
+      this.getTotal()
+    })
   }
 
   refresh(){
-
+    this.getCurrencyValue()
+    console.log("yo")
   }
 
   getTotal(){
@@ -157,26 +198,61 @@ class Portfolio extends React.Component {
   }
 
   changeToEuro(){
-    if (this.state.currency === "$") {      
-      var f = this.state.countP
+    if(this.state.currency === "$"){
       this.setState({currency:"€"})
       var newArray = []
-      var a = this.state.stocklist
-      for (var i = 0; i < a.length; i++) {
-        var newV = a[i].props.value * 0.8
-        var newT = newV * a[i].props.quantity
-        var c = f        
-        newArray.push(<Stock key={f} idStock={f} name={a[i].props.name} quantity={a[i].props.quantity} value={newV} totalvalue={newT} selected={a[i].props.selected} onChange={() => this.selectStock(c)}/>)
-        f++               
+      var funcs =[]
+      var counter = this.state.countP
+      for (var i = 0; i < this.state.stocklist.length; i++) {
+        var newV = this.state.stocklist[i].props.value * this.state.currencyValue
+        var newTotal = newV * this.state.stocklist[i].props.quantity
+        var f = counter
+        funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
+        counter++     
       }
-      this.setState({countP:f})
+      for (var t = 0; t < funcs.length; t++) {
+        funcs[t]()
+      }
       this.setState({stocklist:newArray},function(){
-        this.getTotal();
-      })     
+        this.setState({countP:counter}) 
+        this.getTotal()
+      })
     }
   }
 
+  changeToDollar(){
+    if(this.state.currency === "€"){
+      this.setState({currency:"$"})
+      var newArray = []
+      var funcs =[]
+      var counter = this.state.countP
+      for (var i = 0; i < this.state.stocklist.length; i++) {
+        var newV = this.state.stocklist[i].props.value / this.state.currencyValue
+        var newTotal = newV * this.state.stocklist[i].props.quantity
+        var f = counter
+        funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
+        counter++     
+      }
+      for (var t = 0; t < funcs.length; t++) {
+        funcs[t]()
+      }
+      this.setState({stocklist:newArray},function(){
+        this.setState({countP:counter}) 
+        this.getTotal()
+      })
+    }
+  }
+
+
+
+  componentDidMount(){
+    this.getCurrencyValue()
+  }
+
+
+
   render() {
+    console.log(this.state.stocklist)
     return (
       <div className="portfolio">
         <div>{this.props.name}</div>
@@ -190,7 +266,7 @@ class Portfolio extends React.Component {
         }
 
         <button onClick={() => this.changeToEuro()}>Show in €</button>
-        <button onClick={() => this.setState({currency:"$"})}>Show in $</button>
+        <button onClick={() => this.changeToDollar()}>Show in $</button>
         <button onClick={() => this.refresh()}>Refresh</button>
         <button onClick={() => this.props.onClick(this.props.id)}>X</button>
         <table width = "500">
