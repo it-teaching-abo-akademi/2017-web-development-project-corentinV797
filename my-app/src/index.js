@@ -46,7 +46,14 @@ class Portfolio extends React.Component {
       pquantity: '',
       show: false,
       currencyValue: null,
+      isOpen: false,
     };
+  }
+
+  toggleModal = () => {
+    this.setState({
+      isOpen: !this.state.isOpen
+    });
   }
 
   getCurrencyValue(){
@@ -56,7 +63,6 @@ class Portfolio extends React.Component {
     client.onreadystatechange = function() {
       if(client.readyState === 4) {
         var obj = JSON.parse(client.responseText);
-        console.log(obj["Realtime Currency Exchange Rate"]["5. Exchange Rate"])
         var curr = obj["Realtime Currency Exchange Rate"]["5. Exchange Rate"]
         that.setState({currencyValue:curr})
       };
@@ -126,7 +132,6 @@ class Portfolio extends React.Component {
     var j
     for (var i = 0; i < this.state.stocklist.length; i++) {
       if(this.state.stocklist[i].props.idStock === idq){
-        var f = this.state.countP
         func = this.test(newArray,this.state.countP,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,!this.state.stocklist[i].props.selected,this)
         j=i
       }
@@ -170,7 +175,6 @@ class Portfolio extends React.Component {
     var counter = this.state.countP
     for (var i = 0; i < this.state.stocklist.length; i++) {    
       if(!this.state.stocklist[i].props.selected){
-        var f = counter
         funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,this.state.stocklist[i].props.selected,this))        
       }
       counter++  
@@ -206,7 +210,6 @@ class Portfolio extends React.Component {
       for (var i = 0; i < this.state.stocklist.length; i++) {
         var newV = this.state.stocklist[i].props.value * this.state.currencyValue
         var newTotal = newV * this.state.stocklist[i].props.quantity
-        var f = counter
         funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
         counter++     
       }
@@ -229,7 +232,6 @@ class Portfolio extends React.Component {
       for (var i = 0; i < this.state.stocklist.length; i++) {
         var newV = this.state.stocklist[i].props.value / this.state.currencyValue
         var newTotal = newV * this.state.stocklist[i].props.quantity
-        var f = counter
         funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
         counter++     
       }
@@ -252,7 +254,6 @@ class Portfolio extends React.Component {
 
 
   render() {
-    console.log(this.state.stocklist)
     return (
       <div className="portfolio">
         <div>{this.props.name}</div>
@@ -283,10 +284,16 @@ class Portfolio extends React.Component {
             {this.state.stocklist} 
           </tbody>
         </table> 
-        <div>Total value of {this.state.name} : {this.state.total} {this.state.currency}</div>
+        <div>Total value of {this.props.name} : {this.state.total} {this.state.currency}</div>
         <button onClick={() => this.setState({show:true})}>Add stock</button>
-        <button onClick={() => this.refresh()}>Perf graph</button>
+        <button onClick={this.toggleModal}>Perf graph</button>
         <button onClick={() => this.removeSelected()}>Remove selected</button>
+
+
+        <Modal portfolioName={this.props.name} stocklist={this.state.stocklist} show={this.state.isOpen}
+          onClose={this.toggleModal}>
+          Here's some content for the modal
+        </Modal>
       </div>
     );
   }
@@ -299,18 +306,11 @@ class Page extends React.Component {
   constructor(props) {
     super(props);
     this.state = { 
-      isOpen: false,
       portList: [],
       count: 0,
       value: '',
       show: false,
     };
-  }
-
-  toggleModal = () => {
-    this.setState({
-      isOpen: !this.state.isOpen
-    });
   }
 
   handleChange(event) {
@@ -355,14 +355,6 @@ class Page extends React.Component {
         <div className="portfoliopanel">      
           {this.state.portList.map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)} 
         </div>
-          <button onClick={this.toggleModal}>
-            Open the modal
-          </button>
-
-          <Modal show={this.state.isOpen}
-            onClose={this.toggleModal}>
-            Here's some content for the modal
-          </Modal>
       </div>
     );
   }
@@ -370,6 +362,13 @@ class Page extends React.Component {
 
 
 class Modal extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      stocklist: [],
+      portfolioName: null,
+    };
+  }
   render() {
     // Render nothing if the "show" prop is false
     if(!this.props.show) {
@@ -397,10 +396,12 @@ class Modal extends React.Component {
       padding: 30
     };
 
+    console.log(this.props.stocklist)
     return (
       <div className="backdrop" style={backdropStyle}>
         <div className="modal" style={modalStyle}>
-          {this.props.children}
+          {this.props.portfolioName}
+          {this.props.stocklist}
 
           <div className="footer">
             <button onClick={this.props.onClose}>
@@ -416,7 +417,6 @@ class Modal extends React.Component {
 Modal.propTypes = {
   onClose: PropTypes.func.isRequired,
   show: PropTypes.bool,
-  children: PropTypes.node
 };
 
 // ========================================
