@@ -169,6 +169,16 @@ class Portfolio extends React.Component {
     that.getTotal()
   }
 
+  returnSelected(){
+    var newArray = []
+    for (var i = 0; i < this.state.stocklist.length; i++) {    
+      if(this.state.stocklist[i].props.selected){
+        newArray.push(this.state.stocklist[i])
+      }
+    }
+    return newArray    
+  }
+
   removeSelected(){
     var funcs =[]
     var newArray = []
@@ -252,7 +262,6 @@ class Portfolio extends React.Component {
   }
 
 
-
   render() {
     return (
       <div className="portfolio">
@@ -290,7 +299,7 @@ class Portfolio extends React.Component {
         <button onClick={() => this.removeSelected()}>Remove selected</button>
 
 
-        <Modal portfolioName={this.props.name} stocklist={this.state.stocklist} show={this.state.isOpen}
+        <Modal portfolioName={this.props.name} stocklist={this.stocklist} show={this.state.isOpen}
           onClose={this.toggleModal}>
           Here's some content for the modal
         </Modal>
@@ -338,6 +347,25 @@ class Page extends React.Component {
     this.setState({portList:newArray})
   }
 
+  save(){
+    localStorage.setItem('count', this.state.count)
+    localStorage.setItem('portList', JSON.stringify(this.state.portList))
+  }
+
+  componentDidMount(){
+    var c = localStorage.getItem('count')
+    var p = localStorage.getItem('portList')
+    if (c && p) {
+      var a = JSON.parse(p)
+      //console.log(JSON.parse(c))
+      console.log(a)
+      //this.setState({count:JSON.parse(c)})
+      //this.setState({portList:a})
+      return
+    }
+
+  }
+
 
   render() {
     return (
@@ -345,16 +373,18 @@ class Page extends React.Component {
 
         <button onClick={() => this.setState({show:true}) }> Add a Portfolio </button>
         {this.state.show &&
-        <div>
-          <input type="text" value={this.state.value} onChange={this.handleChange.bind(this)} />     
-          <button onClick={() => this.addPortFolio(this.state.value,this.state.count)}>Validate</button>
-        </div>
+          <div>
+            <input type="text" value={this.state.value} onChange={this.handleChange.bind(this)} />     
+            <button onClick={() => this.addPortFolio(this.state.value,this.state.count)}>Validate</button>
+          </div>
         }
 
 
         <div className="portfoliopanel">      
           {this.state.portList.map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)} 
         </div>
+
+        <button onClick={() => this.save()}>Save</button>
       </div>
     );
   }
@@ -396,12 +426,15 @@ class Modal extends React.Component {
       padding: 30
     };
 
-    console.log(this.props.stocklist)
     return (
       <div className="backdrop" style={backdropStyle}>
         <div className="modal" style={modalStyle}>
           {this.props.portfolioName}
-          {this.props.stocklist}
+          {this.props.stocklist.map(stock => 
+            <div > 
+              {stock.props.name}
+              <input type="checkbox" checked={stock.props.selected} onChange={() => stock.props.onChange(stock.props.idStock)}/>
+            </div>)}
 
           <div className="footer">
             <button onClick={this.props.onClose}>
@@ -419,9 +452,20 @@ Modal.propTypes = {
   show: PropTypes.bool,
 };
 
+
+class App extends React.Component {
+  render() {
+    return (
+      <div>
+        <Page />
+      </div>
+    );
+  }
+}
+
 // ========================================
 
 ReactDOM.render(
-  <Page />,
+  <App />,
   document.getElementById('root')
 );
