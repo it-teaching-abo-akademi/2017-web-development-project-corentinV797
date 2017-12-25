@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
+import {LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend} from 'recharts';
 import './index.css';
 
 
@@ -16,7 +17,14 @@ class Stock extends React.Component {
       quantity: 0,
       totalvalue: 0,
       selected: false,
+      isOpen: false,
     };
+  }
+
+  toggleModal = () => {
+    this.setState({
+      isOpen: !this.state.isOpen
+    });
   }
 
   render() {
@@ -26,11 +34,166 @@ class Stock extends React.Component {
         <td align= "center">{this.props.value}</td>
         <td align= "center">{this.props.quantity}</td>
         <td align= "center">{this.props.totalvalue}</td>        
-        <td align= "center"><input type="checkbox" checked={this.props.selected} onChange={() => this.props.onChange(this.props.idStock)}/></td>               
+        <td align= "center"><input type="checkbox" checked={this.props.selected} onChange={() => this.props.onChange(this.props.idStock)}/></td>
+        <td align= "center"><button onClick={() => this.toggleModal()}>Show</button></td>
+        <Modal stockname={this.props.name} show={this.state.isOpen}
+          onClose={this.toggleModal}>
+          Here's some content for the modal
+        </Modal>               
       </tr>
+
     );
   }
 }
+
+class Modal extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      stockname: null,
+      data: [],
+      minDateAvailable: null,
+      maxDateAvailable: null,
+      firstDate: null,
+      secondDate: null,
+    };
+  }
+  handleChangeF(event) {
+    this.setState({firstDate: event.target.value});
+  }
+
+  handleChangeS(event) {
+    this.setState({secondDate: event.target.value});
+  }
+
+  getData() {
+    this.setState({show:false})
+    var client = new XMLHttpRequest();
+    var that = this
+
+    client.open("GET", "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" + this.props.stockname + "&apikey=AABZ5Q20J049KTFZ", true);
+    client.onreadystatechange = function() {
+      if(client.readyState === 4) {
+        var obj = JSON.parse(client.responseText)
+        var count = 0
+        var t
+        for (t in obj){
+          if (count === 1) {
+            var temp = obj[t]
+          }
+          count++   
+        }
+        count = 0
+
+        var date = []
+        var res = []
+        for (t in temp){
+            const val = temp[t]["4. close"]
+            res.push(val)
+            date.push(t)
+          count++
+        }
+        count =0
+        that.buildData(res,date)
+      };
+    };
+    client.send();
+  }
+
+  buildData(v,d){
+    var res = []
+    this.setState({minDateAvailable:d[d.length-1]})
+    this.setState({maxDateAvailable:d[0]})
+
+    var f = d.length-1
+    var s = 0
+
+    if(this.state.firstDate !== null && this.state.secondDate !== null){
+      for (var i = v.length-1; i >= 0; i--) {
+        if(d[i] === this.state.firstDate){
+          f = i
+        }
+        if(d[i] === this.state.secondDate){
+          s = i
+        }
+      }
+    }
+    for (var i = f; i >= s; i--) {
+      res.push({name: d[i], [this.props.stockname]:parseFloat(v[i])})
+    }
+
+    this.setState({data:res})
+  }
+
+  componentDidMount(){
+    this.getData()
+  }
+
+  render() {
+    // Render nothing if the "show" prop is false
+    if(!this.props.show) {
+      return null;
+    }
+
+    // The gray background
+    const backdropStyle = {
+      position: 'fixed',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      padding: 50
+    };
+
+    // The modal "window"
+    const modalStyle = {
+      backgroundColor: '#fff',
+      borderRadius: 5,
+      maxWidth: 1500,
+      minHeight: 600,
+      margin: '0 auto',
+      padding: 30
+    };
+
+
+    return (
+      <div className="backdrop" style={backdropStyle}>
+        <div className="modal" style={modalStyle}>
+
+
+          <input type="date" name="bday" value={this.state.firstDate} onChange={this.handleChangeF.bind(this)} min={this.state.minDateAvailable} max={this.state.maxDateAvailable}/>
+          <input type="date" name="bday" value={this.state.secondDate} onChange={this.handleChangeS.bind(this)} min={this.state.minDateAvailable} max={this.state.maxDateAvailable}/>      
+
+          <button onClick={() => this.getData()}> Plot </button>
+          <br/>
+          <br/>
+
+          <LineChart width={1400} height={600} data={this.state.data}
+                margin={{top: 5, right: 30, left: 20, bottom: 5}}>
+            <XAxis dataKey="name"/>
+            <YAxis/>
+            <CartesianGrid strokeDasharray="3 3"/>
+            <Tooltip/>
+            <Legend />
+            <Line type="monotone" dataKey={this.props.stockname} stroke="#8884d8" activeDot={{r: 8}}/>
+          </LineChart>
+
+          <div className="footer">
+            <button class="cl" onClick={this.props.onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+Modal.propTypes = {
+  onClose: PropTypes.func.isRequired,
+  show: PropTypes.bool,
+};
 
 class Portfolio extends React.Component {
   constructor(props) {
@@ -46,14 +209,7 @@ class Portfolio extends React.Component {
       pquantity: '',
       show: false,
       currencyValue: null,
-      isOpen: false,
     };
-  }
-
-  toggleModal = () => {
-    this.setState({
-      isOpen: !this.state.isOpen
-    });
   }
 
   getCurrencyValue(){
@@ -120,7 +276,7 @@ class Portfolio extends React.Component {
 
   }
 
-  test(a,c,n,q,v,t,s,that){
+  addf(a,c,n,q,v,t,s,that){
     return function(){
       a.push(<Stock key={c} idStock={c} name={n} quantity={q} value={v} totalvalue={t} selected={s} onChange={() => that.selectStock(c)}/>)
     }
@@ -132,7 +288,7 @@ class Portfolio extends React.Component {
     var j
     for (var i = 0; i < this.state.stocklist.length; i++) {
       if(this.state.stocklist[i].props.idStock === idq){
-        func = this.test(newArray,this.state.countP,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,!this.state.stocklist[i].props.selected,this)
+        func = this.addf(newArray,this.state.countP,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,!this.state.stocklist[i].props.selected,this)
         j=i
       }
     }
@@ -152,40 +308,13 @@ class Portfolio extends React.Component {
     this.setState({pquantity: event.target.value});
   }
 
-  Wrapper(callback,that) {    
-        var value;
-        this.set = function(v) {
-            value = v;
-            callback(this,that);
-        }
-        this.get = function() {
-            return value;
-        }  
-  }
-
-  callback(wrapper,that) {
-    //console.log(that)
-    //that.addStock(that.state.stocklist[0].props.name,that.state.stocklist[0].props.quantity+1,that.state.stocklist[0].props.value,that.state.stocklist[0].props.totalvalue); //get lines when url value is defined
-    that.getTotal()
-  }
-
-  returnSelected(){
-    var newArray = []
-    for (var i = 0; i < this.state.stocklist.length; i++) {    
-      if(this.state.stocklist[i].props.selected){
-        newArray.push(this.state.stocklist[i])
-      }
-    }
-    return newArray    
-  }
-
   removeSelected(){
     var funcs =[]
     var newArray = []
     var counter = this.state.countP
     for (var i = 0; i < this.state.stocklist.length; i++) {    
       if(!this.state.stocklist[i].props.selected){
-        funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,this.state.stocklist[i].props.selected,this))        
+        funcs.push(this.addf(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,this.state.stocklist[i].props.selected,this))        
       }
       counter++  
     }
@@ -200,7 +329,6 @@ class Portfolio extends React.Component {
 
   refresh(){
     this.getCurrencyValue()
-    console.log("yo")
   }
 
   getTotal(){
@@ -220,7 +348,7 @@ class Portfolio extends React.Component {
       for (var i = 0; i < this.state.stocklist.length; i++) {
         var newV = this.state.stocklist[i].props.value * this.state.currencyValue
         var newTotal = newV * this.state.stocklist[i].props.quantity
-        funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
+        funcs.push(this.addf(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
         counter++     
       }
       for (var t = 0; t < funcs.length; t++) {
@@ -242,7 +370,7 @@ class Portfolio extends React.Component {
       for (var i = 0; i < this.state.stocklist.length; i++) {
         var newV = this.state.stocklist[i].props.value / this.state.currencyValue
         var newTotal = newV * this.state.stocklist[i].props.quantity
-        funcs.push(this.test(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
+        funcs.push(this.addf(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newV,newTotal,this.state.stocklist[i].props.selected,this))
         counter++     
       }
       for (var t = 0; t < funcs.length; t++) {
@@ -268,8 +396,8 @@ class Portfolio extends React.Component {
         <div>{this.props.name}</div>
         {this.state.show &&
         <div >
-          <input type="text" value={this.state.pname} onChange={this.handleChangeN.bind(this)} />
-          <input type="text" value={this.state.pquantity} onChange={this.handleChangeQ.bind(this)} />     
+          <input type="text" placeholder="Stock name" value={this.state.pname} onChange={this.handleChangeN.bind(this)} />
+          <input type="text" placeholder="Quantity" value={this.state.pquantity} onChange={this.handleChangeQ.bind(this)} />     
           <button onClick={() => this.add(this.state.pname,this.state.pquantity)}>Validate</button>
         </div>
 
@@ -278,7 +406,7 @@ class Portfolio extends React.Component {
         <button onClick={() => this.changeToEuro()}>Show in €</button>
         <button onClick={() => this.changeToDollar()}>Show in $</button>
         <button onClick={() => this.refresh()}>Refresh</button>
-        <button onClick={() => this.props.onClick(this.props.id)}>X</button>
+        <button class="bt" onClick={() => this.props.onClick(this.props.id)}>X</button>
         <table width = "500">
           <thead>
             <tr>
@@ -287,6 +415,7 @@ class Portfolio extends React.Component {
               <th>Quantity</th>
               <th>Total value</th>
               <th>Select</th>
+              <th>Graph</th>
             </tr>
           </thead>
           <tbody>          
@@ -294,15 +423,9 @@ class Portfolio extends React.Component {
           </tbody>
         </table> 
         <div>Total value of {this.props.name} : {this.state.total} {this.state.currency}</div>
-        <button onClick={() => this.setState({show:true})}>Add stock</button>
-        <button onClick={this.toggleModal}>Perf graph</button>
+        {this.state.stocklist.length < 50 &&
+        <button onClick={() => this.setState({show:true})}>Add stock</button>}
         <button onClick={() => this.removeSelected()}>Remove selected</button>
-
-
-        <Modal portfolioName={this.props.name} stocklist={this.stocklist} show={this.state.isOpen}
-          onClose={this.toggleModal}>
-          Here's some content for the modal
-        </Modal>
       </div>
     );
   }
@@ -347,110 +470,37 @@ class Page extends React.Component {
     this.setState({portList:newArray})
   }
 
-  save(){
-    localStorage.setItem('count', this.state.count)
-    localStorage.setItem('portList', JSON.stringify(this.state.portList))
-  }
-
-  componentDidMount(){
-    var c = localStorage.getItem('count')
-    var p = localStorage.getItem('portList')
-    if (c && p) {
-      var a = JSON.parse(p)
-      //console.log(JSON.parse(c))
-      console.log(a)
-      //this.setState({count:JSON.parse(c)})
-      //this.setState({portList:a})
-      return
-    }
-
-  }
-
 
   render() {
     return (
-      <div >
-
-        <button onClick={() => this.setState({show:true}) }> Add a Portfolio </button>
+      <div>
+        {this.state.portList.length < 10 &&
+        <button onClick={() => this.setState({show:true}) }> Add a Portfolio </button>}
         {this.state.show &&
           <div>
-            <input type="text" value={this.state.value} onChange={this.handleChange.bind(this)} />     
+            <input type="text" placeholder="Portfolio name" value={this.state.value} onChange={this.handleChange.bind(this)} />     
             <button onClick={() => this.addPortFolio(this.state.value,this.state.count)}>Validate</button>
           </div>
         }
-
-
-        <div className="portfoliopanel">      
-          {this.state.portList.map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)} 
+        <div className="portfoliopanel">    
+          {this.state.portList.slice(0,3).map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)}
         </div>
-
-        <button onClick={() => this.save()}>Save</button>
-      </div>
-    );
-  }
-}
-
-
-class Modal extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      stocklist: [],
-      portfolioName: null,
-    };
-  }
-  render() {
-    // Render nothing if the "show" prop is false
-    if(!this.props.show) {
-      return null;
-    }
-
-    // The gray background
-    const backdropStyle = {
-      position: 'fixed',
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'rgba(0,0,0,0.3)',
-      padding: 50
-    };
-
-    // The modal "window"
-    const modalStyle = {
-      backgroundColor: '#fff',
-      borderRadius: 5,
-      maxWidth: 500,
-      minHeight: 300,
-      margin: '0 auto',
-      padding: 30
-    };
-
-    return (
-      <div className="backdrop" style={backdropStyle}>
-        <div className="modal" style={modalStyle}>
-          {this.props.portfolioName}
-          {this.props.stocklist.map(stock => 
-            <div > 
-              {stock.props.name}
-              <input type="checkbox" checked={stock.props.selected} onChange={() => stock.props.onChange(stock.props.idStock)}/>
-            </div>)}
-
-          <div className="footer">
-            <button onClick={this.props.onClose}>
-              Close
-            </button>
-          </div>
+        <br/><br/>
+        <div className="portfoliopanel">    
+          {this.state.portList.slice(3,6).map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)}
+        </div>
+        <br/><br/>
+        <div className="portfoliopanel">    
+          {this.state.portList.slice(6,9).map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)}
+        </div>
+        <br/><br/>
+        <div className="portfoliopanel">    
+          {this.state.portList.slice(9).map(portfolio => <div key={portfolio.props.id}> {portfolio} </div>)}
         </div>
       </div>
     );
   }
 }
-
-Modal.propTypes = {
-  onClose: PropTypes.func.isRequired,
-  show: PropTypes.bool,
-};
 
 
 class App extends React.Component {
