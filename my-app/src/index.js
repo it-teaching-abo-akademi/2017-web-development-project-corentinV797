@@ -378,7 +378,6 @@ class Stock extends React.Component {
         {/* Modal component */}
         <Modal stockname={this.props.name} show={this.state.isOpen}
           onClose={this.toggleModal}>
-          Here's some content for the modal
         </Modal>               
       </tr>
 
@@ -508,7 +507,7 @@ class Modal extends React.Component {
     return (
       <div className="backdrop" style={backdropStyle}>
         <div className="modal" style={modalStyle}>
-        
+
           <input type="date" name="bday" value={this.state.firstDate} onChange={this.handleChangeF.bind(this)} min={this.state.minDateAvailable} max={this.state.maxDateAvailable}/>
           <input type="date" name="bday" value={this.state.secondDate} onChange={this.handleChangeS.bind(this)} min={this.state.minDateAvailable} max={this.state.maxDateAvailable}/>      
 
