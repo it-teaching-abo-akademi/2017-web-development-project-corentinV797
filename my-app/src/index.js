@@ -32,12 +32,26 @@ class Page extends React.Component {
   }
 
   //add a portfolio with n its name and i its ID, increment count state
-  addPortFolio(n,i){     
+  addPortFolio(n,i,b){
+    if(b){ //add pf in localstorage if needed
+      if (typeof localStorage["pf"] === 'undefined'){ //check if the pf localStorage already exists
+        var a1 = []; //create new array of pf if it doesn't exist
+      }else{
+        a1 = JSON.parse(localStorage["pf"]); //get array of pf from the localStorage if it exists
+      }
+      var s = [] //stocks list
+      var c = 0 //countP
+      var p = {i,n,s,c}
+      a1.push(p)
+      localStorage["pf"] = JSON.stringify(a1);
+      localStorage["c"] = this.state.count + 1
+    }
+
     var newArray = this.state.portList
     newArray.push(<Portfolio id={i} name={n} onClick={() => this.delPortFolio(i)}/>)
     this.setState({portList:newArray})
-    var c = this.state.count
-    const y = c +1
+    var ct = this.state.count
+    const y = ct +1
     this.setState({count:y})
     this.setState({show:false})
   }
@@ -45,6 +59,16 @@ class Page extends React.Component {
 
   //delete a portfolio thanks to its ID
   delPortFolio(i){
+    //delete pf from the localstorage
+    var pf = JSON.parse(localStorage["pf"])
+    for (var t = 0; t < pf.length; t++) {
+      if( pf[t].i === i){
+        pf.splice(t,1)
+      }
+    }
+    localStorage["pf"] = JSON.stringify(pf);
+
+
     var newArray = this.state.portList
     for (var j = 0; j < newArray.length; j++) {
       if(newArray[j].props.id === i){
@@ -52,6 +76,23 @@ class Page extends React.Component {
       }
     }    
     this.setState({portList:newArray})
+  }
+  componentWillMount(){
+    if(localStorage["c"]){
+      var co = JSON.parse(localStorage["c"])
+      this.setState({count:co})
+    }    
+  }
+
+  componentDidMount(){
+    if(localStorage["pf"] && localStorage["c"]){
+      var pf = JSON.parse(localStorage["pf"])
+
+      for (var p in pf) {
+        //add all already existing pf from the local storage
+        this.addPortFolio(pf[p].n,pf[p].i,false)
+      }
+    }
   }
 
 
@@ -65,7 +106,7 @@ class Page extends React.Component {
         {this.state.show &&
           <div>
             <input type="text" placeholder="Portfolio name" value={this.state.value} onChange={this.handleChange.bind(this)} />     
-            <button onClick={() => this.addPortFolio(this.state.value,this.state.count)}>Validate</button>
+            <button onClick={() => this.addPortFolio(this.state.value,this.state.count,true)}>Validate</button>
           </div>
         }
         {/* 4 rows of portfolios with unique keys*/}
@@ -124,9 +165,10 @@ class Portfolio extends React.Component {
 
   //http request to add a stock thanks to its n:name/symbol.
   //get the current value in $ and calculate the total value thanks to its q:quantity
-  add(n,q){
+  add(n,q,a,b){
     this.setState({show:false})
     var that = this
+    var array = a
     var client = new XMLHttpRequest();
     client.open("GET", "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=" + n +"&interval=1min&apikey=AABZ5Q20J049KTFZ", true);
     client.onreadystatechange = function() {
@@ -146,7 +188,22 @@ class Portfolio extends React.Component {
           if(count === 0){
             const val = temp[t]["4. close"]
             const tot = val * q
-            that.addStock(n,q,val,tot)
+            that.addStock(n,q,val,tot,array)
+
+
+            if(b){ //add the stock to the corresponding pf in the local storage 
+              var pf = JSON.parse(localStorage["pf"]);
+              for( var p in pf){
+                if(pf[p].i === that.props.id){
+                  var ns = n
+                  var qs = q
+                  pf[p].s.push({ns,qs})
+                }
+              }
+              localStorage["pf"] = JSON.stringify(pf);
+            }
+
+
           }count++
         }
         count =0
@@ -156,21 +213,21 @@ class Portfolio extends React.Component {
   }
 
   //function that actually adds the stock to the stock list with all its attributes (n:name, q:quantity, v:value, t:totalvalue) and with an unique key
-  addStock(n,q,v,t){     
-    var newArray = this.state.stocklist
+  addStock(n,q,v,t,a){     
+    var newArray = a
     if(this.state.currency === "€"){
       v = v * this.state.currencyValue
       t = v * q
     }
     var f = this.state.countP
     newArray.push(<Stock key={this.state.countP} idStock={this.state.countP} name={n} quantity={q} value={v} totalvalue={t} selected={false} onChange={() => this.selectStock(f)}/>)
+    this.updateC()
     this.setState({stocklist:newArray}, function() {
       var c = this.state.countP
       const y = c +1
       this.setState({countP:y})
       this.getTotal()
     })
-
   }
 
   //funtion that add a stock to an array
@@ -201,6 +258,13 @@ class Portfolio extends React.Component {
     const y = c +1
     this.setState({countP:y})
     this.getTotal()
+    var pf = JSON.parse(localStorage["pf"]); //get array of requests from the localStorage if it exists  
+    for( var m = 0; m < pf.length; m++){
+      if(pf[m].i === this.props.id){
+        pf[m].c++
+      }
+    }
+    localStorage["pf"] = JSON.stringify(pf);
   }
 
   //handle stock input name
@@ -221,12 +285,26 @@ class Portfolio extends React.Component {
       if(!this.state.stocklist[i].props.selected){
         //each stock is pushed in a newArray if it is not selected
         funcs.push(this.addf(newArray,counter,this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,this.state.stocklist[i].props.value,this.state.stocklist[i].props.totalvalue,this.state.stocklist[i].props.selected,this))        
+      }else{
+        var pf = JSON.parse(localStorage["pf"]); //get array of pf from the localStorage if it exists  
+        for( var m = 0; m < pf.length; m++){
+          if(pf[m].i === this.props.id){
+            for(var t = 0; t < pf[m].s.length; t++){
+              if(pf[m].s[t].ns === this.state.stocklist[i].props.name && pf[m].s[t].qs === this.state.stocklist[i].props.quantity){
+                //delete selected stocks from the corresponding pf from the localstorage
+                pf[m].s.splice(t,1)
+              }
+            }
+          }
+        }
+        localStorage["pf"] = JSON.stringify(pf);
       }
       counter++  
     }
     for (var j = 0; j < funcs.length; j++) {
       funcs[j]() //call all the addf calls of the previous loop
     }
+    this.updateC()
     this.setState({stocklist:newArray},function(){
       this.setState({countP:counter}) 
       this.getTotal()
@@ -236,6 +314,11 @@ class Portfolio extends React.Component {
   //refresh the current currency change
   refresh(){
     this.getCurrencyValue()
+    var newArray = []
+    for (var i = 0; i < this.state.stocklist.length; i++) {
+      //new request for each already existing stocks
+      this.add(this.state.stocklist[i].props.name,this.state.stocklist[i].props.quantity,newArray,false)
+    }
   }
 
   //update total amount of money in the portfolio by adding all stocks total values
@@ -263,6 +346,7 @@ class Portfolio extends React.Component {
       for (var t = 0; t < funcs.length; t++) {
         funcs[t]()
       }
+      this.updateC()
       this.setState({stocklist:newArray},function(){
         this.setState({countP:counter}) 
         this.getTotal()
@@ -286,6 +370,7 @@ class Portfolio extends React.Component {
       for (var t = 0; t < funcs.length; t++) {
         funcs[t]()
       }
+      this.updateC()
       this.setState({stocklist:newArray},function(){
         this.setState({countP:counter}) 
         this.getTotal()
@@ -293,10 +378,40 @@ class Portfolio extends React.Component {
     }
   }
 
+  updateC() { //update countP of the corresponding pf in the localStorage
+    var pf = JSON.parse(localStorage["pf"]); 
+    for( var m = 0; m < pf.length; m++){
+      if(pf[m].i === this.props.id){
+        pf[m].c ++
+      }
+    }
+    localStorage["pf"] = JSON.stringify(pf); 
+  }
 
+  componentWillMount(){
+    var pf = JSON.parse(localStorage["pf"]);   
+    for( var m = 0; m < pf.length; m++){
+      if(pf[m].i === this.props.id){
+        //set countP to the countP of the localstorage
+        this.setState({countP:pf[m].c})
+      }
+    }
+    localStorage["pf"] = JSON.stringify(pf);
+  }
 
   componentDidMount(){
     this.getCurrencyValue() //get currency change when mounting
+
+    var pf = JSON.parse(localStorage["pf"]); //get array of requests from the localStorage if it exists  
+    for( var m = 0; m < pf.length; m++){
+      if(pf[m].i === this.props.id){
+        for(var t = 0; t < pf[m].s.length; t++){
+          //add all the stocks from the corresponding pf from the localstorage
+          this.add(pf[m].s[t].ns,pf[m].s[t].qs,this.state.stocklist,false)
+        }
+      }
+    }
+    localStorage["pf"] = JSON.stringify(pf);
   }
 
 
@@ -304,12 +419,13 @@ class Portfolio extends React.Component {
     return (
       <div className="portfolio">
         <div>{this.props.name}</div>
+
       {/* input text and quantity only shown when adding a new stock*/}
         {this.state.show &&
         <div >
           <input type="text" placeholder="Stock name" value={this.state.pname} onChange={this.handleChangeN.bind(this)} />
           <input type="text" placeholder="Quantity" value={this.state.pquantity} onChange={this.handleChangeQ.bind(this)} />     
-          <button onClick={() => this.add(this.state.pname,this.state.pquantity)}>Validate</button>
+          <button onClick={() => this.add(this.state.pname,this.state.pquantity,this.state.stocklist,true)}>Validate</button>
         </div>
         }
 
@@ -317,7 +433,7 @@ class Portfolio extends React.Component {
         <button onClick={() => this.changeToDollar()}>Show in $</button>
         <button onClick={() => this.refresh()}>Refresh</button>
         {/* button to delete the portfolio*/}
-        <button class="bt" onClick={() => this.props.onClick(this.props.id)}>X</button>
+        <button className="bt" onClick={() => this.props.onClick(this.props.id)}>X</button>
         {/* stock table */}
         <table width = "500">
           <thead>
@@ -394,8 +510,8 @@ class Modal extends React.Component {
       data: [], //data to feed the graph
       minDateAvailable: null, //oldest date available
       maxDateAvailable: null, //newest date available
-      firstDate: null, //first selected date
-      secondDate: null, //second selected date
+      firstDate: '', //first selected date
+      secondDate: '', //second selected date
     };
   }
 
@@ -530,7 +646,7 @@ class Modal extends React.Component {
           </LineChart>
 
           <div className="footer">
-            <button class="cl" onClick={this.props.onClose}>
+            <button className="cl" onClick={this.props.onClose}>
               Close
             </button>
           </div>
